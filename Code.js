@@ -1,6 +1,6 @@
 // Configuration and globals
-const OPENAI_API_KEY = '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'; // We'll handle this securely later
 const TARGET_EMAIL = 'makecalendarevent@gmail.com';
+const OPENAI_API_KEY = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
 
 // Main function that triggers when email arrives
 async function onNewEmail(e) {
