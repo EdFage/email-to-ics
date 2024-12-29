@@ -30,19 +30,18 @@ async function onNewEmail(e) {
 }
 
 async function processEmail(message) {
-  const emailContent = {
-    subject: message.getSubject(),
-    body: message.getPlainBody(),
-    from: message.getFrom()
-  };
+    const emailContent = {
+      subject: message.getSubject(),
+      body: message.getPlainBody(),
+      from: message.getFrom()
+    };
   
-  // Add 'await' here to get the actual data
-  const eventDetails = await extractEventDetails(emailContent);
-  const icsContent = createICSFile(eventDetails);
+    const eventDetails = await extractEventDetails(emailContent);
+    const icsContent = createICSFile(eventDetails);
   
-  // Pass all three required arguments: recipient, icsContent, and eventDetails
-  sendResponse(emailContent.from, icsContent, eventDetails);
-}
+    // Pass the Gmail Message object (not just emailContent) to sendResponse
+    sendResponse(message, icsContent, eventDetails);
+  }
 
 async function extractEventDetails(emailContent) {
   const url = 'https://api.openai.com/v1/chat/completions';
@@ -139,55 +138,44 @@ function createICSFile(eventData) {
   return icsContent;
 }
 
-function sendResponse(recipient, icsContent, eventDetails) {
-  try {
-    // Create the email body
-    const emailBody = `Hello!
-
-I've created a calendar event based on the email you forwarded:
-Event: ${eventDetails.event_title}
-Date: ${eventDetails.datetime_start} to ${eventDetails.datetime_end}
-${eventDetails.location ? `Location: ${eventDetails.location}` : ''}
-
-I've attached the calendar invite (.ics file) to this email. You can open it to add this event to your calendar.
-
-Best regards,
-Your Calendar Assistant`;
-
-    // Make sure ICS content ends with proper line endings
-    const formattedICS = icsContent.trim() + '\r\n';
+function sendResponse(originalMessage, icsContent, eventDetails) {
+    try {
+      // Create the email body
+      const emailBody = `Hello!
     
-    // Create blob with proper MIME type and encoding
-    const icsBlob = Utilities.newBlob('')
-      .setDataFromString(formattedICS, 'UTF-8')
-      .setContentType('text/calendar; charset=UTF-8; method=REQUEST')
-      .setName('invite.ics');
+  I've created a calendar event based on the email you forwarded:
+  Event: ${eventDetails.event_title}
+  Date: ${eventDetails.datetime_start} to ${eventDetails.datetime_end}
+  ${eventDetails.location ? `Location: ${eventDetails.location}` : ''}
     
-    // Log the attachment details for debugging
-    console.log('ICS Blob details:', {
-      contentType: icsBlob.getContentType(),
-      size: icsBlob.getBytes().length,
-      content: formattedICS
-    });
+  I've attached the calendar invite (.ics file) to this email. You can open it to add this event to your calendar.
     
-    // Create and send the email with attachment
-    GmailApp.sendEmail(recipient, 
-      'Your Calendar Invite', 
-      emailBody,
-      {
+  Best regards,
+  Your Calendar Assistant`;
+  
+      // Ensure ICS content ends with proper line endings
+      const formattedICS = icsContent.trim() + '\r\n';
+      
+      // Create the ICS file as a blob
+      const icsBlob = Utilities.newBlob('')
+        .setDataFromString(formattedICS, 'UTF-8')
+        .setContentType('text/calendar; charset=UTF-8; method=REQUEST')
+        .setName('invite.ics');
+      
+      // Reply to the thread of the original message
+      const thread = originalMessage.getThread();
+      thread.reply(emailBody, {
         attachments: [icsBlob],
         from: TARGET_EMAIL,
         name: 'Calendar Assistant'
-      }
-    );
-
-    console.log('Response email sent successfully to:', recipient);
-    
-  } catch (error) {
-    console.error('Error sending response:', error);
-    throw error;
+      });
+  
+      console.log('Reply sent successfully to the thread.');
+    } catch (error) {
+      console.error('Error sending response:', error);
+      throw error;
+    }
   }
-}
 
 function createTrigger() {
   // Delete any existing triggers first to avoid duplicates
