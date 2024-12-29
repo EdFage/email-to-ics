@@ -2,7 +2,15 @@
 const TARGET_EMAIL = 'makecalendarevent@gmail.com';
 const OPENAI_API_KEY = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
 
-// Main function that triggers when email arrives
+/**
+ * Main function triggered when a new email arrives.
+ * Searches for unread emails addressed to the target email and processes them.
+ *
+ * @async
+ * @param {object} e - The event object provided by the Gmail trigger.
+ * @returns {Promise<void>} - Resolves after all unread emails are processed.
+ * @throws {Error} Throws an error if there is an issue processing emails.
+ */
 async function onNewEmail(e) {
   try {
     console.log('Starting email check...');
@@ -29,6 +37,15 @@ async function onNewEmail(e) {
   }
 }
 
+/**
+ * Processes an individual email to extract event details
+ * and send a calendar invite response.
+ *
+ * @async
+ * @param {object} message - The Gmail message object.
+ * @returns {Promise<void>} - Resolves when the email has been processed and responded to.
+ * @throws {Error} Throws an error if email processing or response fails.
+ */
 async function processEmail(message) {
     const emailContent = {
       subject: message.getSubject(),
@@ -43,6 +60,17 @@ async function processEmail(message) {
     sendResponse(message, icsContent, eventDetails);
   }
 
+/**
+ * Extracts event details from an email using the OpenAI API.
+ *
+ * @async
+ * @param {object} emailContent - An object containing email details.
+ * @param {string} emailContent.subject - The email's subject line.
+ * @param {string} emailContent.body - The email's body text.
+ * @param {string} emailContent.from - The sender's email address.
+ * @returns {Promise<object>} - Resolves with an object containing event details.
+ * @throws {Error} Throws an error if the API call fails or returns invalid data.
+ */
 async function extractEventDetails(emailContent) {
   const url = 'https://api.openai.com/v1/chat/completions';
   
@@ -107,6 +135,17 @@ Email Body: ${emailContent.body}`
   }
 }
 
+/**
+ * Creates ICS file content for a calendar event from provided event details.
+ *
+ * @param {object} eventData - An object containing event details.
+ * @param {string} eventData.event_title - The event's title.
+ * @param {string} eventData.datetime_start - The event's start time in ICS format.
+ * @param {string} eventData.datetime_end - The event's end time in ICS format.
+ * @param {string} [eventData.location] - The optional event location.
+ * @returns {string} - The ICS file content as a string.
+ * @throws {Error} Throws an error if required event details are missing.
+ */
 function createICSFile(eventData) {
   console.log('Creating ICS file with data:', JSON.stringify(eventData, null, 2));
   
@@ -138,6 +177,19 @@ function createICSFile(eventData) {
   return icsContent;
 }
 
+/**
+ * Sends a response email with a calendar invite attached.
+ *
+ * @param {object} originalMessage - The original Gmail message object.
+ * @param {string} icsContent - The generated ICS file content.
+ * @param {object} eventDetails - The event details object.
+ * @param {string} eventDetails.event_title - The event's title.
+ * @param {string} eventDetails.datetime_start - The event's start time.
+ * @param {string} eventDetails.datetime_end - The event's end time.
+ * @param {string} [eventDetails.location] - The event's location, if provided.
+ * @returns {void}
+ * @throws {Error} Throws an error if the response email fails to send.
+ */
 function sendResponse(originalMessage, icsContent, eventDetails) {
     try {
       // Create the email body
@@ -177,6 +229,13 @@ function sendResponse(originalMessage, icsContent, eventDetails) {
     }
   }
 
+/**
+ * Sets up a time-driven trigger to execute the `onNewEmail` function every minute.
+ * Removes existing triggers to avoid duplicates before creating a new one.
+ *
+ * @returns {void}
+ * @throws {Error} Throws an error if trigger creation fails.
+ */
 function createTrigger() {
   // Delete any existing triggers first to avoid duplicates
   const existingTriggers = ScriptApp.getProjectTriggers();
