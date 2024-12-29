@@ -15,9 +15,8 @@ async function onNewEmail(e) {
       
       for (const message of messages) {
         // Log email details
-        console.log('Processing email:');
-        console.log('From:', message.getFrom());
         console.log('Subject:', message.getSubject());
+        console.log('From:', message.getFrom());
         console.log('Body:', message.getPlainBody().substring(0, 100) + '...'); // First 100 chars
         
         await processEmail(message);
@@ -60,7 +59,7 @@ async function extractEventDetails(emailContent) {
     messages: [
       {
         role: "system",
-        content: "You are an assistant that takes an email and creates calendar event JSON. Return dates in ICS format (YYYYMMDDTHHMMSSZ). Only return valid JSON with no markdown formatting or backticks."
+        content: "You are an assistant that takes an email and creates calendar event JSON. Return dates in ICS format (YYYYMMDDTHHMMSS). Only return valid JSON with no markdown formatting or backticks."
       },
       {
         role: "user", 
