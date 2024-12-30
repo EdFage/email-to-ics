@@ -4,52 +4,50 @@ const OPENAI_API_KEY = PropertiesService.getScriptProperties().getProperty('OPEN
 
 /**
  * Main function triggered when a new email arrives.
- * Searches for unread emails addressed to the target email and processes them.
+ * Processes only the most recent message in each unread thread.
  *
  * @async
  * @param {object} e - The event object provided by the Gmail trigger.
- * @returns {Promise<void>} - Resolves after all unread emails are processed.
+ * @returns {Promise<void>} - Resolves after all unread threads are processed.
  * @throws {Error} Throws an error if there is an issue processing emails.
  */
 async function onNewEmail(e) {
-  try {
-    console.log('Starting email check...');
-    const threads = GmailApp.search('is:unread to:' + TARGET_EMAIL);
-    console.log(`Found ${threads.length} unread threads`);
-    
-    for (const thread of threads) {
-      const messages = thread.getMessages();
-      console.log(`Processing thread with ${messages.length} messages`);
-      
-      for (const message of messages) {
-        // Log email details
-        console.log('Subject:', message.getSubject());
-        console.log('From:', message.getFrom());
-        console.log('Body:', message.getPlainBody().substring(0, 100) + '...'); // First 100 chars
-        
-        await processEmail(message);
-        message.markRead();
-        console.log('Email marked as read');
-      }
-    }
-  } catch (error) {
-    console.error('Error in onNewEmail:', error);
-  }
-}
-
-/**
- * Processes an individual email to extract event details
- * and send a calendar invite response.
- *
- * @async
- * @param {object} message - The Gmail message object.
- * @returns {Promise<void>} - Resolves when the email has been processed and responded to.
- * @throws {Error} Throws an error if email processing or response fails.
- */
-async function processEmail(message) {
     try {
-      // Concatenate the email content into a plain-text input
-      const text = `Subject: ${message.getSubject()}\nBody: ${message.getPlainBody()}`;
+      console.log('Starting email check...');
+      const threads = GmailApp.search('is:unread to:' + TARGET_EMAIL);
+      console.log(`Found ${threads.length} unread threads`);
+      
+      for (const thread of threads) {
+        const messages = thread.getMessages();
+        const mostRecentMessage = messages[messages.length - 1]; // Get the last (most recent) message
+        
+        console.log(`Processing most recent message in thread`);
+        console.log('Subject:', mostRecentMessage.getSubject());
+        console.log('From:', mostRecentMessage.getFrom());
+        console.log('Body:', mostRecentMessage.getPlainBody().substring(0, 100) + '...'); // First 100 chars
+        
+        await processEmail(mostRecentMessage);
+        thread.markRead(); // Mark the entire thread as read
+        console.log('Thread marked as read');
+      }
+    } catch (error) {
+      console.error('Error in onNewEmail:', error);
+    }
+  }
+  
+  /**
+   * Processes the most recent email message to extract event details
+   * and send a calendar invite response.
+   *
+   * @async
+   * @param {object} message - The Gmail message object.
+   * @returns {Promise<void>} - Resolves when the email has been processed and responded to.
+   * @throws {Error} Throws an error if email processing or response fails.
+   */
+  async function processEmail(message) {
+    try {
+      // Extract relevant content for AI
+      const text = `Subject: ${message.getSubject()}\nSender: ${message.getFrom()}\nBody: ${message.getPlainBody()}`;
       console.log('Processing email text:', text);
   
       // Call OpenAI API to get event details
@@ -67,7 +65,6 @@ async function processEmail(message) {
       throw error;
     }
   }
-
 
 /**
  * Sends text to the OpenAI API and parses the response into event details.
