@@ -47,93 +47,94 @@ async function onNewEmail(e) {
  * @throws {Error} Throws an error if email processing or response fails.
  */
 async function processEmail(message) {
-    const emailContent = {
-      subject: message.getSubject(),
-      body: message.getPlainBody(),
-      from: message.getFrom()
-    };
+    try {
+      // Concatenate the email content into a plain-text input
+      const text = `Subject: ${message.getSubject()}\nBody: ${message.getPlainBody()}`;
+      console.log('Processing email text:', text);
   
-    const eventDetails = await extractEventDetails(emailContent);
-    const icsContent = createICSFile(eventDetails);
+      // Call OpenAI API to get event details
+      const eventData = await openAiApiCall(text);
   
-    // Pass the Gmail Message object (not just emailContent) to sendResponse
-    sendResponse(message, icsContent, eventDetails);
+      // Create ICS content using the extracted event details
+      const icsContent = createICSFile(eventData);
+  
+      // Send the response email with the ICS file attached
+      sendResponse(message, icsContent, eventData);
+  
+      console.log('Email processed successfully.');
+    } catch (error) {
+      console.error('Error in processEmail:', error);
+      throw error;
+    }
   }
+
 
 /**
- * Extracts event details from an email using the OpenAI API.
+ * Sends text to the OpenAI API and parses the response into event details.
  *
- * @async
- * @param {object} emailContent - An object containing email details.
- * @param {string} emailContent.subject - The email's subject line.
- * @param {string} emailContent.body - The email's body text.
- * @param {string} emailContent.from - The sender's email address.
- * @returns {Promise<object>} - Resolves with an object containing event details.
+ * @param {string} text - The plain text to be sent to the API.
+ * @returns {Promise<object>} - Resolves with an object containing event details (event_title, datetime_start, datetime_end, location).
  * @throws {Error} Throws an error if the API call fails or returns invalid data.
  */
-async function extractEventDetails(emailContent) {
-  const url = 'https://api.openai.com/v1/chat/completions';
+async function openAiApiCall(text) {
+    const url = 'https://api.openai.com/v1/chat/completions';
+    
+    const requestBody = {
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: `You are an assistant that extracts event details from an email and returns them as valid JSON for a calendar invite. 
+          The JSON must include the following fields:
+          - "event_title" (string, required)
+          - "datetime_start" (string, required, in the format YYYYMMDDTHHMMSS)
+          - "datetime_end" (string, required, in the format YYYYMMDDTHHMMSS)
+          - "location" (string, optional)
+          
+          Your response should always be strictly valid JSON. Do not include any extra explanations, markdown, or formatting. If a required field cannot be determined, return an empty string for that field.`
+              },
+        {
+          role: "user",
+          content: text
+        }
+      ],
+      temperature: 0.1
+    };
   
-  // Get current date in format "24th Dec 2024"
-  const now = new Date().toLocaleDateString('en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  }).replace(',', '');
-  
-  const requestBody = {
-    model: "gpt-3.5-turbo",
-    messages: [
-      {
-        role: "system",
-        content: "You are an assistant that takes an email and creates calendar event JSON. Return dates in ICS format (YYYYMMDDTHHMMSS). Only return valid JSON with no markdown formatting or backticks."
+    const options = {
+      method: 'post',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
       },
-      {
-        role: "user", 
-        content: `Parse this email into a JSON object with event_title, datetime_start, datetime_end, and location. The current time is ${now}
-
-Email Subject: ${emailContent.subject}
-Email Body: ${emailContent.body}`
+      payload: JSON.stringify(requestBody)
+    };
+  
+    try {
+      console.log('Sending prompt to OpenAI:', requestBody.messages);
+      const response = UrlFetchApp.fetch(url, options);
+      const json = JSON.parse(response.getContentText());
+      const eventJson = json.choices[0].message.content;
+  
+      // Parse the response string into JSON
+      const eventData = JSON.parse(eventJson);
+      console.log('Parsed event data:', eventData);
+  
+      // Validate required fields
+      const requiredFields = ["event_title", "datetime_start", "datetime_end"];
+      for (const field of requiredFields) {
+        if (!eventData[field]) {
+          throw new Error(`Missing required field: ${field}`);
+        }
       }
-    ],
-    response_format: { type: "json_object" },
-    temperature: 0.1
-  };
-
-  const options = {
-    method: 'post',
-    headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    payload: JSON.stringify(requestBody)
-  };
-
-  try {
-    console.log('Sending prompt to OpenAI:', requestBody.messages);
-    const response = UrlFetchApp.fetch(url, options);
-    const json = JSON.parse(response.getContentText());
-    const eventJson = json.choices[0].message.content;
-    console.log('Raw OpenAI response:', eventJson);
-    
-    // Parse the response string into JSON
-    const eventData = JSON.parse(eventJson);
-    console.log('Parsed event data:', eventData);
-    
-    // Validate required fields
-    const requiredFields = ["event_title", "datetime_start", "datetime_end"];
-    for (const field of requiredFields) {
-      if (!eventData[field]) {
-        throw new Error(`Missing required field: ${field}`);
-      }
+  
+      return eventData;
+    } catch (error) {
+      console.error('Error in openAiApiCall:', error);
+      throw error;
     }
-    
-    return eventData;
-  } catch (error) {
-    console.error('Error in extractEventDetails:', error);
-    throw error;
   }
-}
+
 
 /**
  * Creates ICS file content for a calendar event from provided event details.
@@ -176,6 +177,7 @@ function createICSFile(eventData) {
   console.log('Generated ICS content:', icsContent.replace(/\r\n/g, '\\r\\n'));
   return icsContent;
 }
+
 
 /**
  * Sends a response email with a calendar invite attached.
