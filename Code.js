@@ -75,21 +75,46 @@ async function onNewEmail(e) {
  */
 async function openAiApiCall(text) {
     const url = 'https://api.openai.com/v1/chat/completions';
+
+    // Create a new Date object
+    const currentDate = new Date();
+
+    // Convert to long format using toLocaleDateString
+    const longDate = currentDate.toLocaleDateString('en-US', { 
+        weekday: 'long', // Full name of the weekday
+        year: 'numeric', // Four-digit year
+        month: 'long',   // Full name of the month
+        day: 'numeric'   // Numeric day
+    });
     
     const requestBody = {
       model: "gpt-3.5-turbo",
       messages: [
         {
-          role: "system",
-          content: `You are an assistant that extracts event details from an email and returns them as valid JSON for a calendar invite. 
-          The JSON must include the following fields:
-          - "event_title" (string, required)
-          - "datetime_start" (string, required, in the format YYYYMMDDTHHMMSS)
-          - "datetime_end" (string, required, in the format YYYYMMDDTHHMMSS)
-          - "location" (string, optional)
-          
-          Your response should always be strictly valid JSON. Do not include any extra explanations, markdown, or formatting. If a required field cannot be determined, return an empty string for that field.`
+            "role": "system",
+            "content": `
+            You are an assistant that extracts event details from an email and returns them as valid JSON.
+            The JSON must adhere to this schema:
+            {
+              "type": "object",
+              "properties": {
+                "event_title": { "type": "string" },
+                "datetime_start": { 
+                  "type": "string", 
+                  "pattern": "^\\d{8}T\\d{6}$" 
+                },
+                "datetime_end": { 
+                  "type": "string", 
+                  "pattern": "^\\d{8}T\\d{6}$" 
+                },
+                "location": { "type": "string", "default": "" }
               },
+              "required": ["event_title", "datetime_start", "datetime_end"]
+            }
+            Ensure the datetime_start and datetime_end fields are in ICS format (YYYYMMDDTHHMMSS).
+            The current date is ${longDate}
+            `
+          },
         {
           role: "user",
           content: text
@@ -193,16 +218,22 @@ function sendResponse(originalMessage, icsContent, eventDetails) {
     try {
       // Create the email body
       const emailBody = `Hello!
-    
-  I've created a calendar event based on the email you forwarded:
-  Event: ${eventDetails.event_title}
-  Date: ${eventDetails.datetime_start} to ${eventDetails.datetime_end}
-  ${eventDetails.location ? `Location: ${eventDetails.location}` : ''}
-    
-  I've attached the calendar invite (.ics file) to this email. You can open it to add this event to your calendar.
-    
-  Best regards,
-  Your Calendar Assistant`;
+
+      I've created a calendar event based on the email you forwarded:
+      
+      Event: ${eventDetails.event_title}
+      Start Date: ${formatDate(eventDetails.datetime_start)} 
+      Start Time: ${formatTime(eventDetails.datetime_start)} 
+      End Date: ${formatDate(eventDetails.datetime_end)} 
+      End Time: ${formatTime(eventDetails.datetime_end)}
+      ${eventDetails.location ? `Location: ${eventDetails.location}` : ''}
+      
+      I've attached the calendar invite (.ics file) to this email. You can open it to add this event to your calendar.
+      
+      Best regards,
+      Your Calendar Assistant
+      
+      Please note: this is a project under development. If you encounter any bugs or issues, please contact me at edfagedeveloper@gmail.com and I will resolve them as soon as possible`;
   
       // Ensure ICS content ends with proper line endings
       const formattedICS = icsContent.trim() + '\r\n';
@@ -248,3 +279,30 @@ function createTrigger() {
     
   console.log('Trigger created successfully');
 }
+
+function formatDate(dateTime) {
+    const year = dateTime.slice(0, 4);
+    const month = dateTime.slice(4, 6);
+    const day = parseInt(dateTime.slice(6, 8), 10);
+  
+    const months = [
+      "January", "February", "March", "April", "May", "June", 
+      "July", "August", "September", "October", "November", "December"
+    ];
+    const suffixes = ["th", "st", "nd", "rd"];
+    
+    // Determine the correct day suffix
+    const suffix = 
+      day % 10 === 1 && day !== 11 ? suffixes[1] :
+      day % 10 === 2 && day !== 12 ? suffixes[2] :
+      day % 10 === 3 && day !== 13 ? suffixes[3] : 
+      suffixes[0];
+      
+    return `${day}${suffix} ${months[parseInt(month, 10) - 1]} ${year}`;
+  }
+
+  function formatTime(dateTime) {
+    const hours = dateTime.slice(9, 11);
+    const minutes = dateTime.slice(11, 13);
+    return `${hours}:${minutes}`; // 24-hour format
+  }
