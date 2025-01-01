@@ -233,7 +233,7 @@ function sendResponse(originalMessage, icsContent, eventDetails) {
       Best regards,
       Your Calendar Assistant
       
-      Please note: this is a project in development! If you have suggestions to improve it or find any bugs, please contact me at edfagedeveloper@gmail.com - I'd love to hear from you!`;
+      Please note: this is a project under development. If you encounter any bugs or have any feature suggestions, please contact me at edfagedeveloper@gmail.com.`;
   
       // Ensure ICS content ends with proper line endings
       const formattedICS = icsContent.trim() + '\r\n';
