@@ -22,7 +22,7 @@ This Google Apps Script (GAS) project automates the creation of calendar invites
 - Access to the Gmail and Google Apps Script APIs.
 - An OpenAI API key for accessing the GPT model.
 
-## Setup Instructions
+## Setup 
 
 1. **Clone the Repository**: 
    Clone this repository or copy the script file into the Google Apps Script editor.
@@ -48,7 +48,7 @@ This Google Apps Script (GAS) project automates the creation of calendar invites
 
 ## Contributing
 
-Contributions, suggestions, and bug reports are welcome! Please open an issue or submit a pull request to improve this project.
+Contributions, suggestions, and bug reports are welcome! Please open an issue or submit a pull request to improve this project, or email me on edfagedeveloper@gmail.com
 
 ## License
 
