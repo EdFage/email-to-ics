@@ -2,6 +2,8 @@
 
 This Google Apps Script (GAS) project automates the creation of calendar invites (`.ics` files) based on email content. When a new email arrives at a designated inbox, the script processes the email to extract event details using the OpenAI API, generates an `.ics` file, and sends a reply with the event invite attached.
 
+This was the initial inspiration for [calendarthat.com](https://calendarthat.com), which has all these features and more!
+
 ## Features
 
 - **Automated Email Processing**: Automatically scans for unread emails in the designated inbox.
